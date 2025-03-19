@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useState } from 'react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 // Mock data for our application
 const mockProducts = [

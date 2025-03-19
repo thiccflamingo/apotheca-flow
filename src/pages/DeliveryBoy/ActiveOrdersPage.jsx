@@ -1,92 +1,55 @@
 
 import { useAppContext } from '@/context/AppContext';
 import { useState } from 'react';
-import { 
-  Package, 
-  Truck, 
-  MapPin, 
-  CheckCheck,
-  Phone,
-  Clock
-} from 'lucide-react';
+import { Search, Package, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import OrderCard from '@/components/UI/OrderCard';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from '@/components/ui/dialog';
-import { format } from 'date-fns';
+import OrderDetail from '@/components/DeliveryBoy/OrderDetail';
 
 const ActiveOrdersPage = () => {
-  const { orders, user, updateOrderStatus } = useAppContext();
-  const [statusUpdateDialog, setStatusUpdateDialog] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [newStatus, setNewStatus] = useState('');
+  const { orders, user } = useAppContext();
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Filter active orders for this delivery boy
+  // Filter active orders assigned to the current delivery boy
   const activeOrders = orders.filter(order => 
-    order.deliveryBoy && 
-    order.deliveryBoy.id === user.id && 
-    order.status !== 'delivered'
+    (order.status === 'assigned' || order.status === 'in-transit') && 
+    order.deliveryBoy?.id === user?.id
   );
   
-  const handleOpenStatusUpdate = (order, status) => {
-    setSelectedOrder(order);
-    setNewStatus(status);
-    setStatusUpdateDialog(true);
-  };
-  
-  const handleUpdateStatus = () => {
-    if (selectedOrder && newStatus) {
-      updateOrderStatus(selectedOrder.id, newStatus);
-      setStatusUpdateDialog(false);
-    }
-  };
-  
-  const renderOrderActions = (order) => {
-    if (order.status === 'assigned') {
-      return (
-        <Button 
-          onClick={() => handleOpenStatusUpdate(order, 'in-transit')}
-          className="flex-1 bg-pharma-500 hover:bg-pharma-600"
-        >
-          <Truck className="h-4 w-4 mr-2" /> Start Delivery
-        </Button>
-      );
-    } else if (order.status === 'in-transit') {
-      return (
-        <Button 
-          onClick={() => handleOpenStatusUpdate(order, 'delivered')}
-          className="flex-1 bg-green-600 hover:bg-green-700"
-        >
-          <CheckCheck className="h-4 w-4 mr-2" /> Mark as Delivered
-        </Button>
-      );
-    }
-    return null;
-  };
+  // Apply search filter
+  const filteredOrders = activeOrders.filter(order => 
+    order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.customer.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    `order #${order.id}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1">Active Orders</h1>
         <p className="text-muted-foreground">
-          Manage your current active orders
+          View and manage your current deliveries
         </p>
       </div>
       
-      {activeOrders.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {activeOrders.map(order => (
-            <OrderCard 
-              key={order.id} 
-              order={order} 
-              actions={renderOrderActions(order)}
-            />
+      {/* Search bar */}
+      {activeOrders.length > 0 && (
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search by customer name, address or order #..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      )}
+      
+      {/* Orders list */}
+      {filteredOrders.length > 0 ? (
+        <div className="space-y-6">
+          {filteredOrders.map(order => (
+            <OrderDetail key={order.id} order={order} />
           ))}
         </div>
       ) : (
@@ -94,79 +57,30 @@ const ActiveOrdersPage = () => {
           <div className="bg-muted/50 p-4 rounded-full mb-4">
             <Package className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium mb-2">No Active Orders</h3>
+          <h3 className="text-lg font-medium mb-2">
+            {activeOrders.length > 0 
+              ? "No orders match your search" 
+              : "No active orders"
+            }
+          </h3>
           <p className="text-muted-foreground mb-4">
-            You don't have any orders assigned to you right now.
+            {activeOrders.length > 0 
+              ? "Try adjusting your search criteria" 
+              : "You don't have any active orders assigned to you"
+            }
           </p>
-        </div>
-      )}
-      
-      {/* Status Update Dialog */}
-      <Dialog open={statusUpdateDialog} onOpenChange={setStatusUpdateDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Update Order Status</DialogTitle>
-          </DialogHeader>
           
-          <div className="py-4">
-            <div className="mb-4">
-              <h3 className="text-sm font-medium mb-2">Order #{selectedOrder?.id}</h3>
-              <div className="bg-muted/30 p-3 rounded-md">
-                <div className="text-sm">
-                  <div className="font-medium mb-1">{selectedOrder?.customer?.name}</div>
-                  <div className="text-muted-foreground flex items-start gap-1 mb-2">
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" /> 
-                    {selectedOrder?.customer?.address}
-                  </div>
-                  <div className="text-muted-foreground flex items-center gap-1 mb-2">
-                    <Phone className="h-4 w-4 flex-shrink-0" /> 
-                    {selectedOrder?.customer?.contact}
-                  </div>
-                  <div className="text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-4 w-4 flex-shrink-0" /> 
-                    Order placed: {selectedOrder ? format(new Date(selectedOrder.createdAt), 'MMM d, yyyy · h:mm a') : ''}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-amber-50 text-amber-800 p-3 rounded-md text-sm mb-4">
-              {newStatus === 'in-transit' ? (
-                <div className="flex gap-2">
-                  <Truck className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Start Delivery?</p>
-                    <p>This will update the order status to "In Transit".</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <CheckCheck className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Mark as Delivered?</p>
-                    <p>This will complete the order and remove it from your active orders.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <DialogFooter>
+          {activeOrders.length > 0 && searchQuery && (
             <Button 
               variant="outline" 
-              onClick={() => setStatusUpdateDialog(false)}
+              onClick={() => setSearchQuery('')}
+              size="sm"
             >
-              Cancel
+              <X className="h-4 w-4 mr-1" /> Clear Search
             </Button>
-            <Button 
-              onClick={handleUpdateStatus}
-              className={newStatus === 'delivered' ? 'bg-green-600 hover:bg-green-700' : 'bg-pharma-500 hover:bg-pharma-600'}
-            >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+        </div>
+      )}
     </div>
   );
 };
