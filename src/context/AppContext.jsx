@@ -1,5 +1,6 @@
+
 import { createContext, useContext, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 // Mock data for our application
 const mockProducts = [
@@ -260,4 +261,3 @@ export const AppProvider = ({ children }) => {
 };
 
 export const useAppContext = () => useContext(AppContext);
-
